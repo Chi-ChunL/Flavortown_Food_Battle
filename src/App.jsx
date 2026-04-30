@@ -33,6 +33,28 @@ const categories = [
 const POST_LIMIT = 3;
 const ONE_HOUR = 60 * 60 * 1000;
 
+const BANNED_WORDS = [
+  "fuck",
+  "shit",
+  "bitch",
+  "bastard",
+  "asshole",
+  "dick",
+  "cunt",
+  "slut",
+  "whore",
+  "nigger",
+  "faggot",
+  "retard",
+  "kill yourself",
+];
+
+function containsBannedWords(text) {
+  const lowerText = text.toLowerCase();
+
+  return BANNED_WORDS.some((word) => lowerText.includes(word));
+}
+
 function App() {
   const [foods, setFoods] = useState([]);
   const [name, setName] = useState("");
@@ -46,6 +68,7 @@ function App() {
   const [canSubmit, setCanSubmit] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [commentInputs, setCommentInputs] = useState({});
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -152,19 +175,15 @@ function App() {
     const cleanName = name.trim().slice(0, 60);
     const cleanDescription = description.trim().slice(0, 200);
 
+    if (containsBannedWords(`${cleanName} ${cleanDescription}`)) {
+      alert(
+        "Your submission was blocked because it contains inappropriate language."
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
-
-      const toxicityScore = await checkToxicity(
-        `${cleanName} ${cleanDescription}`
-      );
-
-      if (toxicityScore > 0.7) {
-        alert(
-          "Your submission was flagged as inappropriate. Please keep it food related!"
-        );
-        return;
-      }
 
       await addDoc(collection(db, "foods"), {
         name: cleanName,
@@ -172,6 +191,7 @@ function App() {
         category,
         upvotes: 0,
         downvotes: 0,
+        comments: [],
         createdAt: serverTimestamp(),
         authorId: user.uid,
         postedByAdmin: isAdmin,
@@ -286,6 +306,85 @@ function App() {
     }
   }
 
+  async function addComment(foodId) {
+    if (!user) {
+      alert("Please wait while the app connects.");
+      return;
+    }
+
+    const commentText = (commentInputs[foodId] || "").trim();
+
+    if (commentText === "") {
+      alert("Please write a comment first.");
+      return;
+    }
+
+    const cleanComment = commentText.slice(0, 100);
+
+    if (containsBannedWords(cleanComment)) {
+      alert("Your comment was blocked because it contains inappropriate language.");
+      return;
+    }
+
+    try {
+      const food = foods.find((item) => item.id === foodId);
+
+      if (!food) {
+        alert("This dish could not be found.");
+        return;
+      }
+
+      const newComment = {
+        id: Date.now().toString(),
+        text: cleanComment,
+        authorId: user.uid,
+        postedByAdmin: isAdmin,
+        createdAt: Date.now(),
+      };
+
+      const updatedComments = [...(food.comments || []), newComment];
+
+      await updateDoc(doc(db, "foods", foodId), {
+        comments: updatedComments,
+      });
+
+      setCommentInputs({
+        ...commentInputs,
+        [foodId]: "",
+      });
+    } catch (error) {
+      console.error("Failed to add comment:", error);
+      alert("Something went wrong while adding your comment.");
+    }
+  }
+
+  async function deleteComment(foodId, commentId) {
+    if (!isAdmin) {
+      alert("Only admin can delete comments.");
+      return;
+    }
+
+    const food = foods.find((item) => item.id === foodId);
+
+    if (!food) {
+      alert("This dish could not be found.");
+      return;
+    }
+
+    const updatedComments = (food.comments || []).filter(
+      (comment) => comment.id !== commentId
+    );
+
+    try {
+      await updateDoc(doc(db, "foods", foodId), {
+        comments: updatedComments,
+      });
+    } catch (error) {
+      console.error("Failed to delete comment:", error);
+      alert("Something went wrong while deleting this comment.");
+    }
+  }
+
   async function deleteFood(id) {
     if (!isAdmin) {
       alert("You are not allowed to delete dishes.");
@@ -311,43 +410,6 @@ function App() {
       setIsAdmin(true);
     } else {
       alert("Wrong password!");
-    }
-  }
-
-  async function checkToxicity(text) {
-    const apiKey = import.meta.env.VITE_PERSPECTIVE_API_KEY;
-
-    if (!apiKey || apiKey === "YOUR_PERSPECTIVE_KEY") {
-      console.warn("Perspective API key missing. Skipping toxicity check.");
-      return 0;
-    }
-
-    try {
-      const response = await fetch(
-        `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            comment: {
-              text,
-            },
-            languages: ["en"],
-            requestedAttributes: {
-              TOXICITY: {},
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      return data?.attributeScores?.TOXICITY?.summaryScore?.value || 0;
-    } catch (error) {
-      console.error("Toxicity check failed:", error);
-      return 0;
     }
   }
 
@@ -490,6 +552,7 @@ function App() {
             ) : (
               filteredFoods.map((food) => {
                 const currentVote = votedItems[food.id];
+                const comments = food.comments || [];
 
                 return (
                   <div className="fb-card" key={food.id}>
@@ -544,6 +607,52 @@ function App() {
                           Delete
                         </button>
                       )}
+                    </div>
+
+                    <div className="fb-comments">
+                      <h4>Comments</h4>
+
+                      {comments.length === 0 ? (
+                        <p className="fb-no-comments">No comments yet.</p>
+                      ) : (
+                        <div className="fb-comment-list">
+                          {comments.map((comment) => (
+                            <div className="fb-comment" key={comment.id}>
+                              <span>{comment.text}</span>
+
+                              {isAdmin && (
+                                <button
+                                  className="fb-comment-delete"
+                                  onClick={() =>
+                                    deleteComment(food.id, comment.id)
+                                  }
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="fb-comment-form">
+                        <input
+                          type="text"
+                          placeholder="Write a short comment..."
+                          value={commentInputs[food.id] || ""}
+                          maxLength={100}
+                          onChange={(event) =>
+                            setCommentInputs({
+                              ...commentInputs,
+                              [food.id]: event.target.value,
+                            })
+                          }
+                        />
+
+                        <button onClick={() => addComment(food.id)}>
+                          Post
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
