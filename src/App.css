@@ -383,3 +383,44 @@ select:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.fb-feed-header {
+  justify-content: space-between;
+}
+
+.fb-filter-status {
+  display: block;
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 3px;
+}
+
+.fb-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0.75rem 1rem 0;
+}
+
+.fb-filter-btn {
+  background: #f5f1eb;
+  border: 0.5px solid rgba(0, 0, 0, 0.1);
+  color: #666;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.fb-filter-btn:hover {
+  border-color: #ef9f27;
+  color: #854f0b;
+}
+
+.fb-filter-btn.active {
+  background: #1a1209;
+  color: white;
+  border-color: #1a1209;
+}

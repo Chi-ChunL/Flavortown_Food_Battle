@@ -19,11 +19,15 @@ import {
 } from "firebase/firestore";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
+
+const categories = ["All", "Burger", "Pizza", "Noodles", "Dessert", "Drink", "Other"];
+
 function App() {
   const [foods, setFoods] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Burger");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [votedItems, setVotedItems] = useState({});
@@ -117,8 +121,6 @@ function App() {
       return;
     }
 
-    // Normal users can only submit once per hour.
-    // Admin users ignore this restriction.
     if (!isAdmin && !canSubmit) {
       alert("You can only submit one dish per hour!");
       return;
@@ -157,8 +159,6 @@ function App() {
         postedByAdmin: isAdmin,
       });
 
-      // Only normal users get the cooldown saved.
-      // Admin users can keep posting.
       if (!isAdmin) {
         await setDoc(
           doc(db, "users", user.uid),
@@ -188,8 +188,6 @@ function App() {
       return;
     }
 
-    // Normal users can only vote once per dish.
-    // Admin users ignore this restriction.
     if (!isAdmin && votedItems[id]) {
       alert("You've already voted on this dish!");
       return;
@@ -215,8 +213,6 @@ function App() {
         });
       }
 
-      // Only normal users have their vote recorded.
-      // Admin users can vote again and again.
       if (!isAdmin) {
         const newVotes = {
           ...votedItems,
@@ -310,6 +306,11 @@ function App() {
 
   const leaderboard = [...foods].sort((a, b) => score(b) - score(a));
 
+  const filteredFoods =
+    selectedCategory === "All"
+      ? foods
+      : foods.filter((food) => food.category === selectedCategory);
+
   const formDisabled = (!canSubmit && !isAdmin) || submitting;
 
   return (
@@ -395,18 +396,40 @@ function App() {
         </div>
 
         <div className="fb-panel">
-          <div className="fb-panel-header">
-            <h2>Food feed</h2>
-            <span className="fb-count-badge">{foods.length}</span>
+          <div className="fb-panel-header fb-feed-header">
+            <div>
+              <h2>Food feed</h2>
+              <span className="fb-filter-status">
+                Showing: {selectedCategory}
+              </span>
+            </div>
+
+            <span className="fb-count-badge">{filteredFoods.length}</span>
+          </div>
+
+          <div className="fb-filter-row">
+            {categories.map((item) => (
+              <button
+                key={item}
+                className={`fb-filter-btn ${
+                  selectedCategory === item ? "active" : ""
+                }`}
+                onClick={() => setSelectedCategory(item)}
+              >
+                {item}
+              </button>
+            ))}
           </div>
 
           <div className="fb-feed">
             {loading ? (
               <div className="fb-empty">Loading dishes...</div>
-            ) : foods.length === 0 ? (
-              <div className="fb-empty">No dishes yet — add one!</div>
+            ) : filteredFoods.length === 0 ? (
+              <div className="fb-empty">
+                No dishes found for {selectedCategory}.
+              </div>
             ) : (
-              foods.map((food) => {
+              filteredFoods.map((food) => {
                 const alreadyVoted = !!votedItems[food.id];
                 const voteDisabled = !isAdmin && alreadyVoted;
 
