@@ -515,7 +515,7 @@ select:disabled {
 
 .fb-no-comments {
   font-size: 13px;
-  color: #bbb;
+  color: #444;
   margin-bottom: 8px;
 }
 
@@ -535,7 +535,8 @@ select:disabled {
   border-radius: 8px;
   padding: 7px 9px;
   font-size: 13px;
-  color: #555;
+  color: #111;
+  font-weight: 500;
 }
 
 .fb-comment-delete {
@@ -582,4 +583,17 @@ select:disabled {
 
 .fb-comment-form button:hover {
   background: #2d1f0e;
+}
+
+.fb-comment-form input {
+  color: #111;
+  background: #faf8f5;
+}
+
+.fb-comment-form input::placeholder {
+  color: #666;
+}
+
+.fb-comment-form input:focus {
+  color: #111;
 }
