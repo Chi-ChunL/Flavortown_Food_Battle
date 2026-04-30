@@ -19,7 +19,6 @@ import {
 } from "firebase/firestore";
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
-
 function App() {
   const [foods, setFoods] = useState([]);
   const [name, setName] = useState("");
