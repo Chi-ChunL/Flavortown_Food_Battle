@@ -1,34 +1,53 @@
-import { useState } from "react";
 import "./App.css";
-import foodBg from './assets/food-banner.webp';
+import foodBg from './assets/food-banner.png';
+import { useState, useEffect } from "react";
+import { db } from "./firebase";
+import {
+  collection, onSnapshot, addDoc, doc, updateDoc, serverTimestamp, query, orderBy
+} from "firebase/firestore";
 
 function App() {
-  const [foods, setFoods] = useState([
-    { id: 1, name: "Spicy Dragon Burger", description: "A beef burger with chilli mayo, crispy onions and melted cheese.", category: "Burger", upvotes: 5, downvotes: 1 },
-    { id: 2, name: "Garlic Volcano Pizza", description: "A pizza covered with garlic butter, mozzarella and spicy pepperoni.", category: "Pizza", upvotes: 3, downvotes: 0 },
-  ]);
-
+  const [foods, setFoods] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Burger");
+  const [loading, setLoading] = useState(true);
 
-  function addFood() {
+  useEffect(() => {
+    const q = query(collection(db, "foods"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setFoods(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  async function addFood() {
     if (name.trim() === "" || description.trim() === "") {
       alert("Please enter a food name and description.");
       return;
     }
-    setFoods([{ id: Date.now(), name, description, category, upvotes: 0, downvotes: 0 }, ...foods]);
+    await addDoc(collection(db, "foods"), {
+      name,
+      description,
+      category,
+      upvotes: 0,
+      downvotes: 0,
+      createdAt: serverTimestamp(),
+    });
     setName("");
     setDescription("");
     setCategory("Burger");
   }
 
-  function vote(id, dir) {
-    setFoods(foods.map((f) =>
-      f.id !== id ? f : dir === 1
-        ? { ...f, upvotes: f.upvotes + 1 }
-        : { ...f, downvotes: f.downvotes + 1 }
-    ));
+  async function vote(id, dir) {
+    const food = foods.find((f) => f.id === id);
+    const ref = doc(db, "foods", id);
+    if (dir === 1) {
+      await updateDoc(ref, { upvotes: food.upvotes + 1 });
+    } else {
+      await updateDoc(ref, { downvotes: food.downvotes + 1 });
+    }
   }
 
   function score(f) { return f.upvotes - f.downvotes; }
@@ -76,22 +95,28 @@ function App() {
             <span className="fb-count-badge">{foods.length}</span>
           </div>
           <div className="fb-feed">
-            {foods.map((f) => (
-              <div className="fb-card" key={f.id}>
-                <div className="fb-card-top">
-                  <h3>{f.name}</h3>
-                  <span className="fb-cat-pill">{f.category}</span>
+            {loading ? (
+              <div className="fb-empty">Loading dishes...</div>
+            ) : foods.length === 0 ? (
+              <div className="fb-empty">No dishes yet — add one!</div>
+            ) : (
+              foods.map((f) => (
+                <div className="fb-card" key={f.id}>
+                  <div className="fb-card-top">
+                    <h3>{f.name}</h3>
+                    <span className="fb-cat-pill">{f.category}</span>
+                  </div>
+                  <p className="fb-card-desc">{f.description}</p>
+                  <div className="fb-vote-row">
+                    <button className="fb-vote-btn up" onClick={() => vote(f.id, 1)}>↑ {f.upvotes}</button>
+                    <button className="fb-vote-btn down" onClick={() => vote(f.id, -1)}>↓ {f.downvotes}</button>
+                    <span className={`fb-score ${score(f) > 0 ? "fb-score-positive" : ""}`}>
+                      {score(f) > 0 ? "+" : ""}{score(f)} pts
+                    </span>
+                  </div>
                 </div>
-                <p className="fb-card-desc">{f.description}</p>
-                <div className="fb-vote-row">
-                  <button className="fb-vote-btn up" onClick={() => vote(f.id, 1)}>↑ {f.upvotes}</button>
-                  <button className="fb-vote-btn down" onClick={() => vote(f.id, -1)}>↓ {f.downvotes}</button>
-                  <span className={`fb-score ${score(f) > 0 ? "fb-score-positive" : ""}`}>
-                    {score(f) > 0 ? "+" : ""}{score(f)} pts
-                  </span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
