@@ -1,59 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
- 
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
- 
+
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Fredoka', sans-serif;
   background: #f5f1eb;
   color: #1a1209;
 }
- 
+
 .fb-root {
   max-width: 1100px;
   margin: 0 auto;
   padding-bottom: 3rem;
 }
- 
-/* Hero */
+
 .fb-hero {
-  background: #1a1209;
-  color: #fff;
+  background-color: #fff;
+  background-size: cover;
+  background-position: center;
   padding: 2.5rem 2.5rem 2rem;
   margin-bottom: 1.5rem;
   position: relative;
   overflow: hidden;
 }
 .fb-hero::before {
-  content: '';
-  position: absolute;
-  top: -40px; right: -40px;
-  width: 220px; height: 220px;
-  border-radius: 50%;
-  background: #ef9f27;
-  opacity: 0.12;
+  display: none;
 }
 .fb-hero-eyebrow {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #ef9f27;
+  color: #c8620a;
   margin-bottom: 0.6rem;
 }
 .fb-hero h1 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Fredoka', sans-serif;
   font-size: clamp(28px, 5vw, 46px);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.1;
-  color: #fff;
+  color: #1a1209;
 }
 .fb-hero p {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.55);
   margin-top: 0.5rem;
 }
- 
-/* Layout */
+
 .fb-layout {
   display: grid;
   grid-template-columns: 280px 1fr 240px;
@@ -61,12 +54,11 @@ body {
   padding: 0 1.25rem;
   align-items: start;
 }
- 
+
 @media (max-width: 820px) {
   .fb-layout { grid-template-columns: 1fr; }
 }
- 
-/* Panel */
+
 .fb-panel {
   background: #fff;
   border: 0.5px solid rgba(0, 0, 0, 0.1);
@@ -81,7 +73,8 @@ body {
   gap: 8px;
 }
 .fb-panel-header h2 {
-  font-size: 12px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -95,8 +88,7 @@ body {
   border-radius: 99px;
   padding: 2px 8px;
 }
- 
-/* Form */
+
 .fb-form {
   padding: 1rem 1.25rem;
   display: flex;
@@ -105,7 +97,8 @@ body {
 }
 .fb-field label {
   display: block;
-  font-size: 12px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   font-weight: 500;
   color: #666;
   margin-bottom: 4px;
@@ -115,8 +108,8 @@ body {
 .fb-field textarea,
 .fb-field select {
   width: 100%;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 15px;
   padding: 8px 10px;
   border: 0.5px solid rgba(0, 0, 0, 0.18);
   border-radius: 8px;
@@ -142,8 +135,8 @@ body {
   border: none;
   border-radius: 8px;
   padding: 10px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
@@ -151,8 +144,7 @@ body {
 }
 .fb-submit-btn:hover { background: #2d1f0e; }
 .fb-submit-btn:active { transform: scale(0.98); }
- 
-/* Feed */
+
 .fb-feed {
   padding: 0.75rem 1rem;
   display: flex;
@@ -175,20 +167,22 @@ body {
   margin-bottom: 6px;
 }
 .fb-card h3 {
-  font-family: 'Playfair Display', serif;
-  font-size: 16px;
-  font-weight: 700;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
   line-height: 1.2;
   color: #1a1209;
 }
 .fb-card-desc {
-  font-size: 13px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   color: #666;
   line-height: 1.5;
   margin-bottom: 10px;
 }
 .fb-cat-pill {
-  font-size: 11px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -213,8 +207,8 @@ body {
   border: 0.5px solid rgba(0, 0, 0, 0.1);
   border-radius: 99px;
   padding: 4px 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   font-weight: 500;
   color: #666;
   cursor: pointer;
@@ -225,13 +219,13 @@ body {
 .fb-vote-btn.down:hover { background: #fcebeb; border-color: #e24b4a; color: #a32d2d; }
 .fb-score {
   margin-left: auto;
-  font-size: 13px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   font-weight: 600;
   color: #999;
 }
 .fb-score-positive { color: #854f0b; }
- 
-/* Leaderboard */
+
 .fb-board { padding: 0.5rem 0; }
 .fb-rank-item {
   display: grid;
@@ -245,20 +239,22 @@ body {
 .fb-rank-item:last-child { border-bottom: none; }
 .fb-rank-item:hover { background: #faf8f5; }
 .fb-rank-num {
-  font-family: 'Playfair Display', serif;
-  font-size: 14px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 16px;
   font-weight: 700;
   color: #ccc;
   text-align: center;
 }
 .fb-rank-1 { color: #ef9f27; }
 .fb-rank-name {
-  font-size: 13px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   font-weight: 500;
   color: #1a1209;
 }
 .fb-rank-pts {
-  font-size: 12px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 13px;
   font-weight: 600;
   color: #888;
   background: #f0ece5;
@@ -268,6 +264,7 @@ body {
 .fb-empty {
   padding: 2rem 1.25rem;
   text-align: center;
-  font-size: 13px;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 14px;
   color: #bbb;
 }
