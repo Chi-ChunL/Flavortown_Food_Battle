@@ -3,12 +3,12 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDOgw7e47AScilMAPPhQ2JmMqGydzElvz8",
-  authDomain: "flavortown-2de77.firebaseapp.com",
-  projectId: "flavortown-2de77",
-  storageBucket: "flavortown-2de77.firebasestorage.app",
-  messagingSenderId: "742542144742",
-  appId: "1:742542144742:web:bc6d44e210806ef87e3727"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);

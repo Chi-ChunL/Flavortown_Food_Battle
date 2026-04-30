@@ -3,9 +3,11 @@ import foodBg from './assets/food-banner.png';
 import { useState, useEffect } from "react";
 import { db, auth } from "./firebase";
 import {
-  collection, onSnapshot, addDoc, doc, updateDoc,
+  collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc,
   serverTimestamp, query, orderBy, getDoc, setDoc
 } from "firebase/firestore";
+
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 function App() {
   const [foods, setFoods] = useState([]);
@@ -16,6 +18,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [votedItems, setVotedItems] = useState({});
   const [canSubmit, setCanSubmit] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((u) => {
@@ -72,9 +75,18 @@ function App() {
       return;
     }
 
+    const cleanName = name.trim().slice(0, 60);
+    const cleanDesc = description.trim().slice(0, 200);
+
+    const toxicityScore = await checkToxicity(`${cleanName} ${cleanDesc}`);
+    if (toxicityScore > 0.7) {
+      alert("Your submission was flagged as inappropriate. Please keep it food related!");
+      return;
+    }
+
     await addDoc(collection(db, "foods"), {
-      name,
-      description,
+      name: cleanName,
+      description: cleanDesc,
       category,
       upvotes: 0,
       downvotes: 0,
@@ -116,6 +128,34 @@ function App() {
     }, { merge: true });
   }
 
+  async function deleteFood(id) {
+    await deleteDoc(doc(db, "foods", id));
+  }
+
+  function adminLogin() {
+    const password = prompt("Enter admin password:");
+    if (password === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+    } else {
+      alert("Wrong password!");
+    }
+  }
+  async function checkToxicity(text) {
+    const response = await fetch(
+      `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${import.meta.env.VITE_PERSPECTIVE_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comment: { text },
+          languages: ["en"],
+          requestedAttributes: { TOXICITY: {} },
+        }),
+      }
+    );
+    const data = await response.json();
+    return data.attributeScores.TOXICITY.summaryScore.value;
+  }
   function score(f) { return f.upvotes - f.downvotes; }
 
   const leaderboard = [...foods].sort((a, b) => score(b) - score(a));
@@ -126,6 +166,13 @@ function App() {
         <div className="fb-hero-eyebrow">Community voting</div>
         <h1>Flavortown<br />Food Battle</h1>
         <p>Submit ideas, vote for favourites, claim the top spot.</p>
+        {!isAdmin ? (
+          <button onClick={adminLogin} style={{ marginTop: '1rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: 'rgba(255,255,255,0.5)', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer' }}>
+            Admin
+          </button>
+        ) : (
+          <span style={{ marginTop: '1rem', display: 'inline-block', fontSize: '11px', color: '#ef9f27' }}>Admin mode on</span>
+        )}
       </div>
 
       <div className="fb-layout">
@@ -134,11 +181,11 @@ function App() {
           <div className="fb-form">
             <div className="fb-field">
               <label>Food name</label>
-              <input type="text" placeholder="e.g. Spicy Dragon Burger" value={name} onChange={(e) => setName(e.target.value)} disabled={!canSubmit} />
+              <input type="text" placeholder="e.g. Spicy Dragon Burger" value={name} onChange={(e) => setName(e.target.value)} disabled={!canSubmit} maxLength={60} />
             </div>
             <div className="fb-field">
               <label>Description</label>
-              <textarea placeholder="Describe your food idea..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canSubmit} />
+              <textarea placeholder="Describe your food idea..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canSubmit} maxLength={200} />
             </div>
             <div className="fb-field">
               <label>Category</label>
@@ -194,7 +241,14 @@ function App() {
                     <span className={`fb-score ${score(f) > 0 ? "fb-score-positive" : ""}`}>
                       {score(f) > 0 ? "+" : ""}{score(f)} pts
                     </span>
-                    {votedItems[f.id] && <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '4px' }}>voted</span>}
+                    {votedItems[f.id] && (
+                      <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '4px' }}>voted</span>
+                    )}
+                    {isAdmin && (
+                      <button onClick={() => deleteFood(f.id)} style={{ marginLeft: 'auto', background: '#fee2e2', border: 'none', color: '#a32d2d', borderRadius: '6px', padding: '3px 10px', fontSize: '12px', cursor: 'pointer' }}>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
