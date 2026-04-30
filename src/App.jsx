@@ -501,20 +501,37 @@ function App() {
             {leaderboard.length === 0 ? (
               <div className="fb-empty">No dishes yet</div>
             ) : (
-              leaderboard.map((food, index) => (
-                <div className="fb-rank-item" key={food.id}>
-                  <span
-                    className={`fb-rank-num ${
-                      index === 0 ? "fb-rank-1" : ""
-                    }`}
-                  >
-                    {index + 1}
-                  </span>
-
-                  <span className="fb-rank-name">{food.name}</span>
-                  <span className="fb-rank-pts">{score(food)}</span>
+              <>
+                <div className="fb-podium">
+                  {leaderboard.slice(0, 3).map((food, index) => (
+                    <div
+                      className={`fb-podium-card fb-podium-${index + 1}`}
+                      key={food.id}
+                    >
+                      <div className="fb-medal">
+                        {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                      </div>
+                      <div className="fb-podium-rank">
+                        #{index + 1}
+                      </div>
+                      <h3>{food.name}</h3>
+                      <p>{score(food)} pts</p>
+                    </div>
+                  ))}
                 </div>
-              ))
+
+                {leaderboard.length > 3 && (
+                  <div className="fb-rest-board">
+                    {leaderboard.slice(3).map((food, index) => (
+                      <div className="fb-rank-item" key={food.id}>
+                        <span className="fb-rank-num">{index + 4}</span>
+                        <span className="fb-rank-name">{food.name}</span>
+                        <span className="fb-rank-pts">{score(food)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
