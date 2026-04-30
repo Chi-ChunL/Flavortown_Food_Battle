@@ -1,9 +1,10 @@
 import "./App.css";
 import foodBg from './assets/food-banner.png';
 import { useState, useEffect } from "react";
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
 import {
-  collection, onSnapshot, addDoc, doc, updateDoc, serverTimestamp, query, orderBy
+  collection, onSnapshot, addDoc, doc, updateDoc,
+  serverTimestamp, query, orderBy, getDoc, setDoc
 } from "firebase/firestore";
 
 function App() {
@@ -12,6 +13,16 @@ function App() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Burger");
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [votedItems, setVotedItems] = useState({});
+  const [canSubmit, setCanSubmit] = useState(true);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      if (u) setUser(u);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, "foods"), orderBy("createdAt", "desc"));
@@ -22,11 +33,45 @@ function App() {
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    async function checkSubmitCooldown() {
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const lastSubmit = snap.data().lastSubmit?.toMillis();
+        if (lastSubmit && Date.now() - lastSubmit < 60 * 60 * 1000) {
+          setCanSubmit(false);
+        } else {
+          setCanSubmit(true);
+        }
+      }
+    }
+
+    async function loadVotes() {
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+      if (snap.exists() && snap.data().votes) {
+        setVotedItems(snap.data().votes);
+      }
+    }
+
+    checkSubmitCooldown();
+    loadVotes();
+  }, [user]);
+
   async function addFood() {
+    if (!user) return;
+    if (!canSubmit) {
+      alert("You can only submit one dish per hour!");
+      return;
+    }
     if (name.trim() === "" || description.trim() === "") {
       alert("Please enter a food name and description.");
       return;
     }
+
     await addDoc(collection(db, "foods"), {
       name,
       description,
@@ -34,20 +79,41 @@ function App() {
       upvotes: 0,
       downvotes: 0,
       createdAt: serverTimestamp(),
+      authorId: user.uid,
     });
+
+    await setDoc(doc(db, "users", user.uid), {
+      lastSubmit: serverTimestamp(),
+    }, { merge: true });
+
+    setCanSubmit(false);
     setName("");
     setDescription("");
     setCategory("Burger");
   }
 
   async function vote(id, dir) {
+    if (!user) return;
+    if (votedItems[id]) {
+      alert("You've already voted on this dish!");
+      return;
+    }
+
     const food = foods.find((f) => f.id === id);
     const ref = doc(db, "foods", id);
+
     if (dir === 1) {
       await updateDoc(ref, { upvotes: food.upvotes + 1 });
     } else {
       await updateDoc(ref, { downvotes: food.downvotes + 1 });
     }
+
+    const newVotes = { ...votedItems, [id]: dir };
+    setVotedItems(newVotes);
+
+    await setDoc(doc(db, "users", user.uid), {
+      votes: newVotes,
+    }, { merge: true });
   }
 
   function score(f) { return f.upvotes - f.downvotes; }
@@ -68,15 +134,15 @@ function App() {
           <div className="fb-form">
             <div className="fb-field">
               <label>Food name</label>
-              <input type="text" placeholder="e.g. Spicy Dragon Burger" value={name} onChange={(e) => setName(e.target.value)} />
+              <input type="text" placeholder="e.g. Spicy Dragon Burger" value={name} onChange={(e) => setName(e.target.value)} disabled={!canSubmit} />
             </div>
             <div className="fb-field">
               <label>Description</label>
-              <textarea placeholder="Describe your food idea..." value={description} onChange={(e) => setDescription(e.target.value)} />
+              <textarea placeholder="Describe your food idea..." value={description} onChange={(e) => setDescription(e.target.value)} disabled={!canSubmit} />
             </div>
             <div className="fb-field">
               <label>Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} disabled={!canSubmit}>
                 <option>Burger</option>
                 <option>Pizza</option>
                 <option>Noodles</option>
@@ -85,7 +151,10 @@ function App() {
                 <option>Other</option>
               </select>
             </div>
-            <button className="fb-submit-btn" onClick={addFood}>Submit dish</button>
+            <button className="fb-submit-btn" onClick={addFood} disabled={!canSubmit}
+              style={{ opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
+              {canSubmit ? "Submit dish" : "Come back in an hour"}
+            </button>
           </div>
         </div>
 
@@ -108,11 +177,24 @@ function App() {
                   </div>
                   <p className="fb-card-desc">{f.description}</p>
                   <div className="fb-vote-row">
-                    <button className="fb-vote-btn up" onClick={() => vote(f.id, 1)}>↑ {f.upvotes}</button>
-                    <button className="fb-vote-btn down" onClick={() => vote(f.id, -1)}>↓ {f.downvotes}</button>
+                    <button
+                      className={`fb-vote-btn up ${votedItems[f.id] === 1 ? "voted" : ""}`}
+                      onClick={() => vote(f.id, 1)}
+                      disabled={!!votedItems[f.id]}
+                      style={{ opacity: votedItems[f.id] ? 0.5 : 1 }}>
+                      ↑ {f.upvotes}
+                    </button>
+                    <button
+                      className={`fb-vote-btn down ${votedItems[f.id] === -1 ? "voted" : ""}`}
+                      onClick={() => vote(f.id, -1)}
+                      disabled={!!votedItems[f.id]}
+                      style={{ opacity: votedItems[f.id] ? 0.5 : 1 }}>
+                      ↓ {f.downvotes}
+                    </button>
                     <span className={`fb-score ${score(f) > 0 ? "fb-score-positive" : ""}`}>
                       {score(f) > 0 ? "+" : ""}{score(f)} pts
                     </span>
+                    {votedItems[f.id] && <span style={{ fontSize: '12px', color: '#aaa', marginLeft: '4px' }}>voted</span>}
                   </div>
                 </div>
               ))
