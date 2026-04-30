@@ -482,3 +482,18 @@ select:disabled {
 .fb-rest-board {
   border-top: 0.5px solid rgba(0, 0, 0, 0.08);
 }
+
+.fb-submit-limit {
+  font-size: 12px;
+  color: #999;
+  background: #faf8f5;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.fb-vote-btn.voted {
+  background: #1a1209;
+  color: white;
+  border-color: #1a1209;
+}

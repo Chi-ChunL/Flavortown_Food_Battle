@@ -20,7 +20,18 @@ import {
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
-const categories = ["All", "Burger", "Pizza", "Noodles", "Dessert", "Drink", "Other"];
+const categories = [
+  "All",
+  "Burger",
+  "Pizza",
+  "Noodles",
+  "Dessert",
+  "Drink",
+  "Other",
+];
+
+const POST_LIMIT = 3;
+const ONE_HOUR = 60 * 60 * 1000;
 
 function App() {
   const [foods, setFoods] = useState([]);
@@ -31,6 +42,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [votedItems, setVotedItems] = useState({});
+  const [submissionTimes, setSubmissionTimes] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,8 +99,9 @@ function App() {
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
-          setCanSubmit(true);
           setVotedItems({});
+          setSubmissionTimes([]);
+          setCanSubmit(true);
           return;
         }
 
@@ -100,13 +113,13 @@ function App() {
           setVotedItems({});
         }
 
-        const lastSubmit = userData.lastSubmit?.toMillis?.();
+        const allSubmissions = userData.submissions || [];
+        const recentSubmissions = allSubmissions.filter(
+          (time) => Date.now() - time < ONE_HOUR
+        );
 
-        if (lastSubmit && Date.now() - lastSubmit < 60 * 60 * 1000) {
-          setCanSubmit(false);
-        } else {
-          setCanSubmit(true);
-        }
+        setSubmissionTimes(recentSubmissions);
+        setCanSubmit(recentSubmissions.length < POST_LIMIT);
       } catch (error) {
         console.error("Failed to load user data:", error);
       }
@@ -121,8 +134,13 @@ function App() {
       return;
     }
 
-    if (!isAdmin && !canSubmit) {
-      alert("You can only submit one dish per hour!");
+    const recentSubmissions = submissionTimes.filter(
+      (time) => Date.now() - time < ONE_HOUR
+    );
+
+    if (!isAdmin && recentSubmissions.length >= POST_LIMIT) {
+      alert("You can only submit three dishes per hour!");
+      setCanSubmit(false);
       return;
     }
 
@@ -160,15 +178,18 @@ function App() {
       });
 
       if (!isAdmin) {
+        const updatedSubmissions = [...recentSubmissions, Date.now()];
+
         await setDoc(
           doc(db, "users", user.uid),
           {
-            lastSubmit: serverTimestamp(),
+            submissions: updatedSubmissions,
           },
           { merge: true }
         );
 
-        setCanSubmit(false);
+        setSubmissionTimes(updatedSubmissions);
+        setCanSubmit(updatedSubmissions.length < POST_LIMIT);
       }
 
       setName("");
@@ -188,11 +209,6 @@ function App() {
       return;
     }
 
-    if (!isAdmin && votedItems[id]) {
-      alert("You've already voted on this dish!");
-      return;
-    }
-
     const food = foods.find((item) => item.id === id);
 
     if (!food) {
@@ -203,32 +219,67 @@ function App() {
     try {
       const foodRef = doc(db, "foods", id);
 
-      if (direction === 1) {
+      if (isAdmin) {
+        if (direction === 1) {
+          await updateDoc(foodRef, {
+            upvotes: increment(1),
+          });
+        } else {
+          await updateDoc(foodRef, {
+            downvotes: increment(1),
+          });
+        }
+
+        return;
+      }
+
+      const previousVote = votedItems[id];
+
+      if (previousVote === direction) {
+        alert("You have already selected this vote.");
+        return;
+      }
+
+      if (!previousVote) {
+        if (direction === 1) {
+          await updateDoc(foodRef, {
+            upvotes: increment(1),
+          });
+        } else {
+          await updateDoc(foodRef, {
+            downvotes: increment(1),
+          });
+        }
+      }
+
+      if (previousVote === 1 && direction === -1) {
         await updateDoc(foodRef, {
-          upvotes: increment(1),
-        });
-      } else {
-        await updateDoc(foodRef, {
+          upvotes: increment(-1),
           downvotes: increment(1),
         });
       }
 
-      if (!isAdmin) {
-        const newVotes = {
-          ...votedItems,
-          [id]: direction,
-        };
-
-        setVotedItems(newVotes);
-
-        await setDoc(
-          doc(db, "users", user.uid),
-          {
-            votes: newVotes,
-          },
-          { merge: true }
-        );
+      if (previousVote === -1 && direction === 1) {
+        await updateDoc(foodRef, {
+          downvotes: increment(-1),
+          upvotes: increment(1),
+        });
       }
+
+      const newVotes = {
+        ...votedItems,
+        [id]: direction,
+      };
+
+      setVotedItems(newVotes);
+
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          votes: newVotes,
+        },
+        { merge: true }
+      );
     } catch (error) {
       console.error("Failed to vote:", error);
       alert("Something went wrong while voting.");
@@ -311,6 +362,10 @@ function App() {
       ? foods
       : foods.filter((food) => food.category === selectedCategory);
 
+  const postsRemaining = isAdmin
+    ? "Unlimited"
+    : Math.max(0, POST_LIMIT - submissionTimes.length);
+
   const formDisabled = (!canSubmit && !isAdmin) || submitting;
 
   return (
@@ -342,6 +397,10 @@ function App() {
           </div>
 
           <div className="fb-form">
+            <p className="fb-submit-limit">
+              Posts remaining this hour: {postsRemaining}
+            </p>
+
             <div className="fb-field">
               <label>Food name</label>
               <input
@@ -390,7 +449,7 @@ function App() {
                 ? "Checking..."
                 : canSubmit || isAdmin
                 ? "Submit dish"
-                : "Come back in an hour"}
+                : "Post limit reached"}
             </button>
           </div>
         </div>
@@ -430,8 +489,7 @@ function App() {
               </div>
             ) : (
               filteredFoods.map((food) => {
-                const alreadyVoted = !!votedItems[food.id];
-                const voteDisabled = !isAdmin && alreadyVoted;
+                const currentVote = votedItems[food.id];
 
                 return (
                   <div className="fb-card" key={food.id}>
@@ -445,20 +503,18 @@ function App() {
                     <div className="fb-vote-row">
                       <button
                         className={`fb-vote-btn up ${
-                          votedItems[food.id] === 1 ? "voted" : ""
+                          currentVote === 1 ? "voted" : ""
                         }`}
                         onClick={() => vote(food.id, 1)}
-                        disabled={voteDisabled}
                       >
                         ↑ {food.upvotes || 0}
                       </button>
 
                       <button
                         className={`fb-vote-btn down ${
-                          votedItems[food.id] === -1 ? "voted" : ""
+                          currentVote === -1 ? "voted" : ""
                         }`}
                         onClick={() => vote(food.id, -1)}
-                        disabled={voteDisabled}
                       >
                         ↓ {food.downvotes || 0}
                       </button>
@@ -472,8 +528,12 @@ function App() {
                         {score(food)} pts
                       </span>
 
-                      {!isAdmin && alreadyVoted && (
-                        <span className="fb-voted-label">voted</span>
+                      {!isAdmin && currentVote === 1 && (
+                        <span className="fb-voted-label">upvoted</span>
+                      )}
+
+                      {!isAdmin && currentVote === -1 && (
+                        <span className="fb-voted-label">downvoted</span>
                       )}
 
                       {isAdmin && (
@@ -511,9 +571,9 @@ function App() {
                       <div className="fb-medal">
                         {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
                       </div>
-                      <div className="fb-podium-rank">
-                        #{index + 1}
-                      </div>
+
+                      <div className="fb-podium-rank">#{index + 1}</div>
+
                       <h3>{food.name}</h3>
                       <p>{score(food)} pts</p>
                     </div>
